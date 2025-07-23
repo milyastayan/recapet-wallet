@@ -26,6 +26,12 @@ class CreateWalletForUser implements ShouldQueue
      */
     public function handle(UserCreated $event): void
     {
+        $user = $event->user;
+
+        if (!$user || $user->wallet()->exists()) {
+            return;
+        }
+
         Wallet::create([
             'user_id' => $event->user->id,
             'balance' => 0,
