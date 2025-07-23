@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Requests\LoginRequest;
-use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\Api\V1\LoginRequest;
+use App\Http\Requests\Api\V1\RegisterRequest;
+use App\Http\Resources\Api\V1\UserResource;
 use App\Models\User;
-use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -24,20 +25,16 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'balance' => 0,
-        ]);
-
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'message' => 'User registered successfully',
-            'user' => $user,
-            'wallet' => $wallet,
-            'access_token' => $token,
-            'token_type' => 'Bearer'
-        ], 201);
+        return $this->successResponse(
+            message: 'Your account was created successfully',
+            data: [
+                'user' => new UserResource($user),
+                'access_token' => $token,
+            ],
+            code: Response::HTTP_CREATED
+        );
     }
 
     /**
@@ -51,16 +48,19 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
+        $user = User::query()
+            ->where('email', $request->get('email'))
+            ->with('wallet')
+            ->firstOrFail();
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => $user,
-            'wallet' => $user->wallet,
-            'access_token' => $token,
-            'token_type' => 'Bearer'
-        ]);
+        return $this->successResponse(
+            message: 'Logged in successfully',
+            data: [
+                'user' => new UserResource($user),
+                'access_token' => $token,
+            ],
+        );
     }
 
     /**
@@ -70,19 +70,20 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Logged out successfully'
-        ]);
+        return $this->successResponse('Logged out successfully');
     }
 
     /**
      * Get authenticated user info.
      */
-    public function user(Request $request)
+    public function me()
     {
-        return response()->json([
-            'user' => $request->user(),
-            'wallet' => $request->user()->wallet
+        $user = Auth::user();
+        $user->load([
+            'wallet',
+        ]);
+        return $this->successDataResponse([
+            'user' => UserResource::make($user),
         ]);
     }
 }
