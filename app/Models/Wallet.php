@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\WithdrawalStatus;
+use App\Traits\HandlesWalletConcurrency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,7 @@ use Throwable;
 
 class Wallet extends Model
 {
-    use HasFactory;
+    use HasFactory, HandlesWalletConcurrency;
 
     /**
      * The attributes that are mass assignable.
@@ -62,40 +63,6 @@ class Wallet extends Model
         return $this->hasMany(Deposit::class);
     }
 
-    public function deposit(int $amount): Deposit
-    {
-        $this->balance += $amount;
-        $this->save();
-
-        return $this->deposits()->create([
-            'amount' => $amount,
-            'new_balance' => $this->balance,
-        ]);
-    }
-
-    /**
-     * @throws Throwable
-     */
-    public function withdraw(int $amount): Withdrawal
-    {
-        return DB::transaction(function () use ($amount) {
-            if ($amount > $this->balance) {
-                return $this->withdrawals()->create([
-                    'amount' => $amount,
-                    'status' => WithdrawalStatus::Failed,
-                ]);
-            }
-
-            $this->balance -= $amount;
-            $this->save();
-
-            return $this->withdrawals()->create([
-                'amount' => $amount,
-                'status' => WithdrawalStatus::Succeeded,
-            ]);
-        });
-    }
-
     public function withdrawals()
     {
         return $this->hasMany(Withdrawal::class);
@@ -104,10 +71,48 @@ class Wallet extends Model
     /**
      * @throws Throwable
      */
+    public function deposit(int $amount): Deposit
+    {
+        return $this->withWalletLock($this, function (Wallet $wallet) use ($amount) {
+            $wallet->increment('balance', $amount);
+
+            return $wallet->deposits()->create([
+                'amount' => $amount,
+                'new_balance' => $wallet->balance,
+            ]);
+        });
+    }
+
+    /**
+     * @throws Throwable
+     */
+    public function withdraw(int $amount): Withdrawal
+    {
+        return $this->withWalletLock($this, function (Wallet $wallet) use ($amount) {
+            if ($amount > $wallet->balance) {
+                return $wallet->withdrawals()->create([
+                    'amount' => $amount,
+                    'status' => WithdrawalStatus::Failed,
+                ]);
+            }
+
+            $wallet->decrement('balance', $amount);
+
+            return $wallet->withdrawals()->create([
+                'amount' => $amount,
+                'status' => WithdrawalStatus::Succeeded,
+            ]);
+        });
+    }
+
+    /**
+     * @throws Throwable
+     */
     public function transferTo(Wallet $receiver, int $amount, string $idempotencyKey): Transfer
     {
-        return DB::transaction(function () use ($receiver, $amount, $idempotencyKey) {
-            if ($this->id === $receiver->id) {
+        return $this->withDualWalletLock($this, $receiver, function (Wallet $sender, Wallet $receiver) use ($amount, $idempotencyKey) {
+
+            if ($sender->id === $receiver->id) {
                 throw new \Exception('Cannot transfer to the same wallet.');
             }
 
@@ -115,23 +120,18 @@ class Wallet extends Model
                 throw new \Exception('Invalid amount.');
             }
 
-            $fee = 0;
-            if ($amount > 25 * 100) {
-                $fee = 250 + intval($amount * 0.10); // 2.50 + 10%
-            }
-
+            $fee = $amount > 2500 ? 250 + intval($amount * 0.10) : 0;
             $total = $amount + $fee;
 
-            if ($this->balance < $total) {
+            if ($sender->balance < $total) {
                 throw new \Exception('Insufficient balance.');
             }
 
-            $this->decrement('balance', $total);
-
+            $sender->decrement('balance', $total);
             $receiver->increment('balance', $amount);
 
             return Transfer::create([
-                'sender_wallet_id' => $this->id,
+                'sender_wallet_id' => $sender->id,
                 'receiver_wallet_id' => $receiver->id,
                 'amount' => $amount,
                 'fee' => $fee,
