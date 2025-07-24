@@ -37,3 +37,20 @@ it('fails to withdraw when balance is insufficient', function () {
 
     expect($this->user->fresh()->wallet->balance)->toBe(1000);
 });
+
+it('prevents double spending under concurrent withdrawals', function () {
+    $this->wallet->update(['balance' => 1000]);
+
+    $requests = collect(range(1, 5))->map(function () {
+        return fn () => $this->postJson($this->baseUrl, ['amount' => 300], $this->headers);
+    });
+
+    $responses = $requests->map(fn ($request) => $request());
+
+    $succeeded = $responses->filter(fn ($res) => $res->json('data.withdrawal.status') === WithdrawalStatus::Succeeded->value);
+    $failed = $responses->filter(fn ($res) => $res->json('data.withdrawal.status') === WithdrawalStatus::Failed->value);
+
+    expect($succeeded)->toHaveCount(3)
+        ->and($failed->count())->toBe(2)
+        ->and($this->wallet->fresh()->balance)->toBe(100);
+});

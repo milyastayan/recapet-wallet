@@ -81,3 +81,30 @@ it('returns same transfer if duplicate idempotency key used', function () {
 
     expect($firstId)->toBe($secondId);
 });
+
+it('safely handles multiple sequential transfers simulating concurrency', function () {
+    $sender = User::factory()->create();
+    $receiver = User::factory()->create();
+
+    Sanctum::actingAs($sender);
+
+    $sender->wallet->update(['balance' => 10000]);
+
+    $transferAmount = 1000;
+    $requests = 5;
+
+    $this->headers['Accept'] = 'application/json';
+
+    foreach (range(1, $requests) as $_) {
+        $this->postJson($this->baseUrl . '/wallet/transfer', [
+            'recipient_uuid' => $receiver->wallet->uuid,
+            'amount' => $transferAmount,
+        ], [
+            'Idempotency-Key' => Str::uuid()->toString(),
+            'Accept' => 'application/json',
+        ])->assertOk();
+    }
+
+    expect($sender->fresh()->wallet->balance)->toBe(10000 - $requests * $transferAmount)
+        ->and($receiver->fresh()->wallet->balance)->toBe($requests * $transferAmount);
+});
