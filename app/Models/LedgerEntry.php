@@ -14,6 +14,19 @@ class LedgerEntry extends Model
         'wallet_id', 'type', 'amount', 'reference_type', 'reference_id',
     ];
 
+    public static function boot(): void
+    {
+        parent::boot();
+
+        static::updating(function () {
+            return false;
+        });
+
+        static::deleting(function () {
+            return false;
+        });
+    }
+
     public function wallet(): BelongsTo
     {
         return $this->belongsTo(Wallet::class);

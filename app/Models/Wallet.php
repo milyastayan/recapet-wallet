@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Enums\WithdrawalStatus;
+use App\Events\DepositCompleted;
+use App\Events\TransferCompleted;
+use App\Events\WithdrawalCompleted;
 use App\Traits\HandlesWalletConcurrency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -39,7 +41,7 @@ class Wallet extends Model
     /**
      * Boot the model.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 
@@ -68,6 +70,11 @@ class Wallet extends Model
         return $this->hasMany(Withdrawal::class);
     }
 
+    public function ledger()
+    {
+        return $this->hasMany(LedgerEntry::class);
+    }
+
     /**
      * @throws Throwable
      */
@@ -76,10 +83,14 @@ class Wallet extends Model
         return $this->withWalletLock($this, function (Wallet $wallet) use ($amount) {
             $wallet->increment('balance', $amount);
 
-            return $wallet->deposits()->create([
+            $deposit = $wallet->deposits()->create([
                 'amount' => $amount,
                 'new_balance' => $wallet->balance,
             ]);
+
+            event(new DepositCompleted($deposit));
+
+            return $deposit;
         });
     }
 
@@ -98,10 +109,16 @@ class Wallet extends Model
 
             $wallet->decrement('balance', $amount);
 
-            return $wallet->withdrawals()->create([
+            $withdrawal =  $wallet->withdrawals()->create([
                 'amount' => $amount,
                 'status' => WithdrawalStatus::Succeeded,
             ]);
+
+            if ($withdrawal->status === WithdrawalStatus::Succeeded) {
+                event(new WithdrawalCompleted($withdrawal));
+            }
+
+            return $withdrawal;
         });
     }
 
@@ -130,13 +147,17 @@ class Wallet extends Model
             $sender->decrement('balance', $total);
             $receiver->increment('balance', $amount);
 
-            return Transfer::create([
+            $transfer =  Transfer::create([
                 'sender_wallet_id' => $sender->id,
                 'receiver_wallet_id' => $receiver->id,
                 'amount' => $amount,
                 'fee' => $fee,
                 'idempotency_key' => $idempotencyKey,
             ]);
+
+            event(new TransferCompleted($transfer));
+
+            return $transfer;
         });
     }
 }
