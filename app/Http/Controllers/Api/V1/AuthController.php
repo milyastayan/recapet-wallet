@@ -48,10 +48,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = User::query()
-            ->where('email', $request->get('email'))
-            ->with('wallet')
-            ->firstOrFail();
+        $user = Auth::user();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return $this->successResponse(
@@ -78,10 +75,8 @@ class AuthController extends Controller
      */
     public function me()
     {
-        $user = Auth::user();
-        $user->load([
-            'wallet',
-        ]);
+        $user = Auth::user()->load('wallet');
+
         return $this->successDataResponse([
             'user' => UserResource::make($user),
         ]);
