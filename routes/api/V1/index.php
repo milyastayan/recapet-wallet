@@ -19,7 +19,7 @@ Route::prefix('auth')->name('auth.')->group(function () {
 });
 
 Route::prefix('wallet')->name('wallet.')->group(function () {
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:5,1'])->group(function () {
         Route::post('deposit', [DepositController::class, 'store'])->name('deposit');
         Route::post('/withdrawals', [WithdrawalController::class, 'store'])->name('withdrawals');
         Route::post('/transfer', [TransferController::class, 'store'])

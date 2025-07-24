@@ -25,7 +25,7 @@ it('safely handles multiple sequential deposits simulating concurrency', functio
     Sanctum::actingAs($user);
 
     $depositAmount = 100;
-    $requests = 10;
+    $requests = 5;
 
     $this->headers['Accept'] = 'application/json';
 
