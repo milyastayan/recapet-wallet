@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\DepositController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
 
@@ -12,5 +13,11 @@ Route::prefix('auth')->name('auth.')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [AuthController::class, 'me'])->name('me');
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+    });
+});
+
+Route::prefix('wallet')->name('wallet.')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('deposit', [DepositController::class, 'store'])->name('deposit');
     });
 });

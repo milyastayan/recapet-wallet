@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Wallet extends Model
@@ -47,8 +49,24 @@ class Wallet extends Model
     /**
      * Get the user that owns the wallet.
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function deposits(): HasMany
+    {
+        return $this->hasMany(Deposit::class);
+    }
+
+    public function deposit(int $amount): Deposit
+    {
+        $this->balance += $amount;
+        $this->save();
+
+        return $this->deposits()->create([
+            'amount' => $amount,
+            'new_balance' => $this->balance,
+        ]);
     }
 }
