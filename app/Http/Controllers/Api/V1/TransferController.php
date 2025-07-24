@@ -18,7 +18,7 @@ class TransferController extends Controller
         $sender = $request->user()->wallet;
         $receiver = Wallet::where('uuid', $request->recipient_uuid)->firstOrFail();
 
-        $transfer = $sender->transferTo($receiver, $request->amount);
+        $transfer = $sender->transferTo($receiver, $request->get('amount'), $request->get('idempotency_key'));
 
         return $this->successResponse(
             message: 'Transfer completed',

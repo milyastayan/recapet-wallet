@@ -104,9 +104,9 @@ class Wallet extends Model
     /**
      * @throws Throwable
      */
-    public function transferTo(Wallet $receiver, int $amount): Transfer
+    public function transferTo(Wallet $receiver, int $amount, string $idempotencyKey): Transfer
     {
-        return DB::transaction(function () use ($receiver, $amount) {
+        return DB::transaction(function () use ($receiver, $amount, $idempotencyKey) {
             if ($this->id === $receiver->id) {
                 throw new \Exception('Cannot transfer to the same wallet.');
             }
@@ -135,6 +135,7 @@ class Wallet extends Model
                 'receiver_wallet_id' => $receiver->id,
                 'amount' => $amount,
                 'fee' => $fee,
+                'idempotency_key' => $idempotencyKey,
             ]);
         });
     }

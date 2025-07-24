@@ -14,6 +14,7 @@ class Transfer extends Model
         'receiver_wallet_id',
         'amount',
         'fee',
+        'idempotency_key',
     ];
 
     public function senderWallet(): BelongsTo
