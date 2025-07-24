@@ -11,7 +11,7 @@ class WalletResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'balance' => $this->balance,
+            'balance' => number_format($this->balance / 100, 2),
         ];
     }
 }

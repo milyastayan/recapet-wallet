@@ -16,8 +16,8 @@ class DepositResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'amount' => $this->amount,
-            'new_balance' => $this->new_balance,
+            'amount' => number_format($this->amount / 100, 2),
+            'new_balance' => number_format($this->new_balance / 100, 2),
             'wallet' => new WalletResource($this->whenLoaded('wallet')),
             'created_at' => $this->created_at->toDateTimeString(),
         ];

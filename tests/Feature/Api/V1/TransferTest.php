@@ -47,7 +47,7 @@ it('transfers funds with fee when amount > 25', function () {
     expect($this->sender->fresh()->wallet->balance)->toBe(10000 - $expectedTotal)
         ->and($this->receiver->fresh()->wallet->balance)->toBe(5000);
 
-    $response->assertJsonPath('data.transfer.fee', $expectedFee);
+    $response->assertJsonPath('data.transfer.fee', number_format($expectedFee / 100, 2));
 });
 
 it('fails to transfer if insufficient balance', function () {

@@ -16,8 +16,8 @@ class TransferResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'amount' => $this->amount,
-            'fee' => $this->fee,
+            'amount' => number_format($this->amount / 100, 2),
+            'fee' => number_format($this->fee / 100, 2),
             'sender_wallet_id' => $this->sender_wallet_id,
             'receiver_wallet_id' => $this->receiver_wallet_id,
             'created_at' => $this->created_at->toDateTimeString(),

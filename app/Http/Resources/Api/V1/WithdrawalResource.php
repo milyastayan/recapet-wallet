@@ -16,7 +16,7 @@ class WithdrawalResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'amount' => $this->amount,
+            'amount' => number_format($this->amount / 100, 2),
             'status' => $this->status,
             'wallet' => new WalletResource($this->whenLoaded('wallet')),
             'created_at' => $this->created_at->toDateTimeString(),

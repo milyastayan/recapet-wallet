@@ -21,7 +21,7 @@ it('successfully withdraws an amount', function () {
     ], $this->headers);
 
     $response->assertOk()
-        ->assertJsonPath('data.withdrawal.amount', 500)
+        ->assertJsonPath('data.withdrawal.amount', number_format(500 / 100, 2))
         ->assertJsonPath('data.withdrawal.status', WithdrawalStatus::Succeeded->value);
 
     expect($this->user->fresh()->wallet->balance)->toBe(500);
