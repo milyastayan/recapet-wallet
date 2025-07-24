@@ -10,13 +10,17 @@ beforeEach(function () {
     Sanctum::actingAs($this->sender);
 
     $this->sender->wallet->update(['balance' => 10000]);
+
+    $this->headers = [
+        'Idempotency-Key' => Str::uuid()->toString(),
+    ];
 });
 
-it('transfers funds successfully without fee (amount <= 25)', function () {
+it('transfers funds successfully without fee (amount <= $25)', function () {
     $response = $this->postJson($this->baseUrl . '/wallet/transfer', [
         'recipient_uuid' => $this->receiver->wallet->uuid,
         'amount' => 2500,
-    ]);
+    ], $this->headers);
 
     $response->assertOk()
         ->assertJsonStructure([
@@ -38,7 +42,7 @@ it('transfers funds with fee when amount > 25', function () {
     $response = $this->postJson($this->baseUrl . '/wallet/transfer', [
         'recipient_uuid' => $this->receiver->wallet->uuid,
         'amount' => $amount,
-    ])->assertOk();
+    ], $this->headers)->assertOk();
 
     expect($this->sender->fresh()->wallet->balance)->toBe(10000 - $expectedTotal)
         ->and($this->receiver->fresh()->wallet->balance)->toBe(5000);
@@ -50,7 +54,7 @@ it('fails to transfer if insufficient balance', function () {
     $this->postJson($this->baseUrl . '/wallet/transfer', [
         'recipient_uuid' => $this->receiver->wallet->uuid,
         'amount' => 20000,
-    ])->assertStatus(500);
+    ], $this->headers)->assertStatus(500);
     expect($this->sender->fresh()->wallet->balance)->toBe(10000)
         ->and($this->receiver->fresh()->wallet->balance)->toBe(0);
 });
@@ -59,5 +63,21 @@ it('fails if recipient wallet does not exist', function () {
     $this->postJson($this->baseUrl . '/wallet/transfer', [
         'recipient_uuid' => 'invalid-uuid',
         'amount' => 1000,
-    ])->assertNotFound();
+    ], $this->headers)->assertUnprocessable();
+});
+
+it('returns same transfer if duplicate idempotency key used', function () {
+    $payload = [
+        'recipient_uuid' => $this->receiver->wallet->uuid,
+        'amount' => 1500,
+    ];
+
+    $first = $this->postJson($this->baseUrl . '/wallet/transfer', $payload, $this->headers)->assertOk();
+
+    $second = $this->postJson($this->baseUrl . '/wallet/transfer', $payload, $this->headers)->assertOk();
+
+    $firstId = $first->json('data.transfer.id');
+    $secondId = $second->json('data.transfer.id');
+
+    expect($firstId)->toBe($secondId);
 });

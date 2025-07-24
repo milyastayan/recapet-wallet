@@ -22,6 +22,7 @@ Route::prefix('wallet')->name('wallet.')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('deposit', [DepositController::class, 'store'])->name('deposit');
         Route::post('/withdrawals', [WithdrawalController::class, 'store'])->name('withdrawals');
-        Route::post('/transfer', [TransferController::class, 'store'])->name('transfer');
+        Route::post('/transfer', [TransferController::class, 'store'])
+            ->middleware('idempotent')->name('transfer');
     });
 });
