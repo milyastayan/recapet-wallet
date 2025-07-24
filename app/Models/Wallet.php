@@ -100,4 +100,42 @@ class Wallet extends Model
     {
         return $this->hasMany(Withdrawal::class);
     }
+
+    /**
+     * @throws Throwable
+     */
+    public function transferTo(Wallet $receiver, int $amount): Transfer
+    {
+        return DB::transaction(function () use ($receiver, $amount) {
+            if ($this->id === $receiver->id) {
+                throw new \Exception('Cannot transfer to the same wallet.');
+            }
+
+            if ($amount <= 0) {
+                throw new \Exception('Invalid amount.');
+            }
+
+            $fee = 0;
+            if ($amount > 25 * 100) {
+                $fee = 250 + intval($amount * 0.10); // 2.50 + 10%
+            }
+
+            $total = $amount + $fee;
+
+            if ($this->balance < $total) {
+                throw new \Exception('Insufficient balance.');
+            }
+
+            $this->decrement('balance', $total);
+
+            $receiver->increment('balance', $amount);
+
+            return Transfer::create([
+                'sender_wallet_id' => $this->id,
+                'receiver_wallet_id' => $receiver->id,
+                'amount' => $amount,
+                'fee' => $fee,
+            ]);
+        });
+    }
 }

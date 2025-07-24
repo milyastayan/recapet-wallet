@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\DepositController;
+use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -21,5 +22,6 @@ Route::prefix('wallet')->name('wallet.')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('deposit', [DepositController::class, 'store'])->name('deposit');
         Route::post('/withdrawals', [WithdrawalController::class, 'store'])->name('withdrawals');
+        Route::post('/transfer', [TransferController::class, 'store'])->name('transfer');
     });
 });
