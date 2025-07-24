@@ -79,3 +79,20 @@ it('logs out the user and revokes token', function () {
             ],
         ]);
 });
+
+it('creates a wallet after user registration', function () {
+    $response = $this->postJson($this->baseUrl . '/auth/register', [
+        'name' => 'Yazan Wallet',
+        'email' => 'wallet-user@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+    ], $this->headers)->assertCreated();
+
+    $userId = $response->json('data.user.id');
+
+    expect($userId)->not->toBeNull();
+
+    $this->assertDatabaseHas('wallets', [
+        'user_id' => $userId,
+    ]);
+});
