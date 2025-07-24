@@ -25,12 +25,11 @@ class DepositController extends Controller
         $wallet = $user->wallet;
 
         $deposit = $wallet->deposit($request->validated('amount'));
-        $deposit->load('wallet');
 
         return $this->successResponse(
             message: 'Deposit successful',
             data: [
-                'deposit' =>new DepositResource($deposit),
+                'deposit' =>new DepositResource($deposit->load('wallet')),
             ],
         );
     }
